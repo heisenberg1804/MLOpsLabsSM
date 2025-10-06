@@ -20,24 +20,22 @@ WORKDIR /app
 
 # Copy the trained model from the previous stage
 COPY --from=model_training /app/my_model.keras /app/
+# Copy the scaler used for preprocessing
+COPY --from=model_training /app/scaler.pkl /app/
 
 # Copy the source code for serving predictions
 COPY src/main.py /app/
 
-# Expose port 80
+# Expose port (configure via PORT env var)
+ENV PORT=80
 EXPOSE 80
-
-# Define environmental variables
-ENV NAME World
 
 # Install any needed packages specified in requirements.txt for the serving stage
 COPY requirements.txt /app/
 RUN pip install --trusted-host pypi.python.org -r requirements.txt
 
-# Copy the templates directory
+# Copy the templates and statics directories
 COPY src/templates /app/templates
-
-# Copy the statics directory
 COPY src/statics /app/statics
 
 # Run the Flask application for serving predictions

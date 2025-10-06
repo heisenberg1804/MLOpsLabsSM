@@ -61,70 +61,104 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 </head>
 <body>
-    <h1>Welcome to the Iris Classifier API - MLOps Class of 2025!</h1>
+    <h1>Welcome to the Wine Classifier API - MLOps Class of 2025!</h1>
     <form id="predictionForm">
-        <label for="sepal_length">Sepal Length:</label>
-        <input type="number" id="sepal_length" step="0.01" required><br>
+        <div class="form-group">
+            <label for="feature_0">Feature 0 (alcohol):</label>
+            <input type="range" class="form-range" id="feature_0" min="10" max="15" step="0.01" value="13.0">
+            <div><small id="f0_val">13.0</small></div>
+        </div>
 
-        <label for="sepal_width">Sepal Width:</label>
-        <input type="number" id="sepal_width" step="0.01" required><br>
+        <div class="form-group">
+            <label for="feature_1">Feature 1 (malic_acid):</label>
+            <input type="range" class="form-range" id="feature_1" min="0" max="6" step="0.01" value="2.0">
+            <div><small id="f1_val">2.0</small></div>
+        </div>
 
-        <label for="petal_length">Petal Length:</label>
-        <input type="number" id="petal_length" step="0.01" required><br>
+        <div class="form-group">
+            <label for="feature_2">Feature 2 (ash):</label>
+            <input type="range" class="form-range" id="feature_2" min="1" max="10" step="0.01" value="2.5">
+            <div><small id="f2_val">2.5</small></div>
+        </div>
 
-        <label for="petal_width">Petal Width:</label>
-        <input type="number" id="petal_width" step="0.01" required><br>
+        <div class="form-group">
+            <label for="feature_3">Feature 3 (alcalinity_of_ash):</label>
+            <input type="range" class="form-range" id="feature_3" min="5" max="30" step="0.01" value="15.0">
+            <div><small id="f3_val">15.0</small></div>
+        </div>
 
-        <input type="submit" value="Predict">
+        <button type="submit" class="btn" id="predictBtn" style="background-color:#28a745;color:white;padding:8px 12px;border-radius:4px;border:none;">Predict</button>
+        <button type="button" class="btn" id="resetBtn" style="margin-left:8px;padding:8px 12px;border-radius:4px;">Reset</button>
     </form>
 
     <div class="predicted-class" style="display:none;">
         <h2 id="predictedClass">Predicted Class:</h2>
-        <img src="" id="flowerImage" class="flower-image" alt="Iris Flower"
-             data-setosa="{{ url_for('static', filename='setosa.jpeg') }}"
-             data-versicolor="{{ url_for('static', filename='versicolor.jpeg') }}"
-             data-virginica="{{ url_for('static', filename='virginica.jpeg') }}" />
+            <img src="" id="flowerImage" class="flower-image" alt="Iris Flower"
+                 data-class0="{{ url_for('static', filename='setosa.jpeg') }}"
+                 data-class1="{{ url_for('static', filename='versicolor.jpeg') }}"
+                 data-class2="{{ url_for('static', filename='virginica.jpeg') }}" />
     </div>
 
     <script>
         $(document).ready(function() {
+            // Sync slider values into visible labels
+            $('#feature_0').on('input change', function() { $('#f0_val').text($(this).val()); });
+            $('#feature_1').on('input change', function() { $('#f1_val').text($(this).val()); });
+            $('#feature_2').on('input change', function() { $('#f2_val').text($(this).val()); });
+            $('#feature_3').on('input change', function() { $('#f3_val').text($(this).val()); });
             $('#predictionForm').on('submit', function(event) {
                 event.preventDefault(); // Prevent the default form submission
 
                 var formData = {
-                    'sepal_length': $('#sepal_length').val(),
-                    'sepal_width': $('#sepal_width').val(),
-                    'petal_length': $('#petal_length').val(),
-                    'petal_width': $('#petal_width').val()
+                    'feature_0': $('#feature_0').val(),
+                    'feature_1': $('#feature_1').val(),
+                    'feature_2': $('#feature_2').val(),
+                    'feature_3': $('#feature_3').val()
                 };
 
                 $.ajax({
                     type: 'POST',
                     url: '/predict',
                     data: formData,
-                    dataType: 'json',
-                    encode: true
+                    dataType: 'json'
                 }).done(function(data) {
                     console.log(data);
-                    $('#predictedClass').text("Predicted Class: " + data.predicted_class);
+                        if (data.error) {
+                            alert('Server error: ' + data.error);
+                            return;
+                        }
+                        $('#predictedClass').text("Predicted Class: " + data.predicted_class);
                     var imageUrl = '';
                     switch (data.predicted_class) {
-                        case 'Setosa':
-                            imageUrl = $('#flowerImage').data('setosa');
+                        case 'Class 0':
+                            imageUrl = $('#flowerImage').data('class0');
                             break;
-                        case 'Versicolor':
-                            imageUrl = $('#flowerImage').data('versicolor');
+                        case 'Class 1':
+                            imageUrl = $('#flowerImage').data('class1');
                             break;
-                        case 'Virginica':
-                            imageUrl = $('#flowerImage').data('virginica');
+                        case 'Class 2':
+                            imageUrl = $('#flowerImage').data('class2');
                             break;
                     }
                     $('#flowerImage').attr('src', imageUrl);
                     $('.predicted-class').show();
                 }).fail(function(data) {
-                    alert('Error: Could not reach the prediction server.');
-                    console.log(data);
+                    var msg = 'Error: Could not reach the prediction server.';
+                    if (data && data.responseText) {
+                        msg += '\nServer response: ' + data.responseText;
+                    }
+                    alert(msg);
+                    console.log('AJAX fail', data);
                 });
+            });
+
+            // Reset behavior
+            $('#resetBtn').on('click', function(){
+                $('#feature_0').val(13.0).trigger('change');
+                $('#feature_1').val(2.0).trigger('change');
+                $('#feature_2').val(2.5).trigger('change');
+                $('#feature_3').val(15.0).trigger('change');
+                $('.predicted-class').hide();
             });
         });
     </script>

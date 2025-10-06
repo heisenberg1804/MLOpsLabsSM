@@ -1,0 +1,26 @@
+# Serving-only Dockerfile
+# Use this when you have already created `my_model.keras` and `scaler.pkl` in the build context
+# (e.g., by running model_training.py inside your `mlopslabs` env).
+
+FROM python:3.9-slim
+
+WORKDIR /app
+
+# Copy model artifacts that were produced locally
+COPY my_model.keras /app/
+COPY scaler.pkl /app/
+
+# Copy the serving code and templates/statics
+COPY src/main.py /app/
+COPY src/templates /app/templates
+COPY src/statics /app/statics
+
+# Install runtime requirements
+COPY requirements.txt /app/
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Expose port via env PORT
+ENV PORT=80
+EXPOSE 80
+
+CMD ["python", "main.py"]
