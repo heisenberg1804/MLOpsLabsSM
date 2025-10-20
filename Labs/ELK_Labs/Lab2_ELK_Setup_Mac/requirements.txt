@@ -1,0 +1,5 @@
+# # For training the model (train_model.py)
+# scikit-learn==1.7.2
+# numpy==2.3.4
+
+python-json-logger==4.0.0

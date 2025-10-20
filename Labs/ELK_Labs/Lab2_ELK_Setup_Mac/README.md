@@ -1,264 +1,391 @@
-# Setting Up ELK Stack for Logging and Training a LR Model
+# ML Model Monitoring with ELK Stack
 
-In this lab, we will walk through the process of setting up the ELK (Elasticsearch, Logstash, Kibana) stack for log management and visualization while training a Linear Regression (LR) model.
+A real-time monitoring system for Machine Learning model inference logs using Elasticsearch, Logstash, and Kibana (ELK Stack).
+
+## Overview
+
+This project implements a file-based log monitoring system that tracks ML model inference metrics including:
+- **Model Performance**: Prediction confidence and classification results
+- **Inference Latency**: Response times in milliseconds
+- **Resource Utilization**: CPU and memory usage
+- **Error Tracking**: Failed predictions and error messages
+- **Request Patterns**: Request IDs and environment tracking
+
+### Key Features
+- Real-time monitoring of ML model inferences
+- File-based log collection and processing
+- Interactive Kibana dashboards
+- Dockerized ELK stack for easy deployment
+- Continuous log generation for testing
+
+## Architecture
+
+```
+┌──────────────────┐     ┌──────────────┐     ┌───────────────┐     ┌──────────────┐
+│ Python Generator │────▶│ inference.log│────▶│   Logstash    │────▶│Elasticsearch │
+│                  │     │    (File)    │     │ (File Input)  │     │              │
+└──────────────────┘     └──────────────┘     └───────────────┘     └───────┬──────┘
+                                                                              │
+                                                                              ▼
+                                                                      ┌──────────────┐
+                                                                      │    Kibana    │
+                                                                      │ (Dashboard)  │
+                                                                      └──────────────┘
+```
+
+## Project Structure
+
+```
+Lab2_ELK_Setup_Mac/
+├── docker-compose.yml              # Docker services configuration
+├── README.md                       # This file
+├── requirements.txt                # Python dependencies (if any)
+├── .gitignore                      # Git ignore patterns
+│
+├── logstash_pipeline/
+│   └── logstash.conf              # Logstash pipeline configuration
+│
+├── generate_inference_logs.py     # ML inference log generator
+└── inference.log                  # Generated log file (created at runtime)
+```
 
 ## Prerequisites
-Make sure you have the following prerequisites in place:
 
-1. Java Installed: ELK stack requires Java to run. To check if Java is installed on your system, open your command line or terminal and run the following command:
+- **Docker Desktop** (macOS/Windows) or **Docker Engine + Docker Compose** (Linux)
+  - macOS: [Download Docker Desktop](https://www.docker.com/products/docker-desktop)
+- **Python 3.8+**
+- **4GB+ RAM** available for Docker containers
+- **5GB+ disk space** for containers and logs
 
-```commandline
-java -version
+### System Requirements
+- CPU: 2+ cores recommended
+- Memory: 8GB total (minimum 4GB for ELK Stack)
+- Network: Ports 9200, 5601, 9600 available
+
+## Installation
+
+### 1. Clone or Navigate to Project Directory
+```bash
+cd /path/to/Lab2_ELK_Setup_Mac
 ```
-2. Java Home: Add the following line to your .bash_profile, replacing /path/to/java with the actual path you obtained in 
 
-```commandline
-/usr/libexec/java_home
+### 2. Verify Project Structure
+Ensure you have the following files:
+- `docker-compose.yml`
+- `logstash_pipeline/logstash.conf`
+- `generate_inference_logs.py`
+
+### 3. Start ELK Stack
+```bash
+# Start all services in detached mode
+docker-compose up -d
+
+# Verify all services are running
+docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+
+# Expected output: elasticsearch, kibana, logstash all running
 ```
-```commandline
-export JAVA_HOME = /path/to/java
+
+### 4. Wait for Services to Initialize
+```bash
+# Wait 60-90 seconds for Elasticsearch and Kibana to fully start
+sleep 60
+
+# Check Elasticsearch health
+curl -s "http://localhost:9200/_cluster/health?pretty"
 ```
-Verify that JAVA_HOME is correctly set by running:
-```commandline
-echo $JAVA_HOME
+
+### 5. Generate Inference Logs
+```bash
+# Start generating logs (runs continuously)
+python3 generate_inference_logs.py
 ```
 
-# MacOS
+The script will:
+- Create `inference.log` file in the current directory
+- Generate realistic ML inference logs every 1-3 seconds
+- Print logs to both file and console
+- Continue until stopped with `Ctrl+C`
 
-Watch the tutorial on how to setup ELK on mac at [ELK Mac setup](https://www.youtube.com/watch?v=4Lux9ZX6J4Y)
+### 6. Access Kibana Dashboard
+Open your browser and navigate to: **http://localhost:5601**
 
+## Usage
 
-## Elasticsearch
-Elasticsearch is a distributed, RESTful search, and analytics engine.
+### Starting the Lab
 
-#### Installation Steps:
-- Visit the Elasticsearch download page: [Elasticsearch Download](https://www.elastic.co/downloads/elasticsearch)
+1. **Start Docker services:**
+   ```bash
+   docker-compose up -d
+   ```
 
-- Select the appropriate version for your operating system (Windows, macOS).
+2. **Generate logs:**
+   ```bash
+   python3 generate_inference_logs.py
+   ```
 
-- Download the Elasticsearch package for your system.
+3. **Access Kibana:**
+   - Open http://localhost:5601
+   - Navigate to **Discover** to view raw logs
+   - Create visualizations in **Dashboard**
 
-- Once the download is complete, extract the package to your preferred installation directory.
+### Stopping the Lab
 
-- Open a terminal window.
+1. **Stop log generator:**
+   Press `Ctrl+C` in the terminal running the Python script
 
-- Navigate to the Elasticsearch directory by using the `cd` command:
-```commandline
-cd /path/to/elasticsearch
+2. **Stop Docker services:**
+   ```bash
+   docker-compose down
+   ```
+
+3. **Remove data volumes (optional):**
+   ```bash
+   docker-compose down -v
+   ```
+
+## Configuring Kibana
+
+### Creating Data View
+
+1. Navigate to **Kibana** → **Stack Management** → **Data Views**
+2. Click **Create data view**
+3. Enter index pattern: `ml-inference-logs*`
+4. Select timestamp field: `@timestamp`
+5. Click **Create data view**
+
+### Viewing Logs
+
+1. Go to **Discover** in Kibana
+2. Select `ml-inference-logs*` index pattern
+3. Adjust time range to see recent logs
+4. Add fields to display:
+   - `model_name`
+   - `prediction_confidence`
+   - `inference_time_ms`
+   - `cpu_usage`
+   - `memory_usage_mb`
+   - `error`
+
+### Creating Visualizations
+
+#### Example: Average Inference Time
+1. Go to **Visualize** → **Create visualization**
+2. Choose **Line** chart
+3. Select `ml-inference-logs*` index
+4. Metrics:
+   - Y-axis: Average of `inference_time_ms`
+5. Buckets:
+   - X-axis: Date Histogram on `@timestamp`
+6. Save visualization
+
+#### Example: Error Rate
+1. Create **Pie** chart
+2. Metrics: Count
+3. Buckets: Split slices by `error` field
+4. Shows distribution of successful vs failed inferences
+
+## Log Structure
+
+Each generated log entry contains:
+
+```json
+{
+  "model_name": "fraud_detector_v1",
+  "model_version": "1.2.0",
+  "type": "model_inference",
+  "prediction_confidence": 0.9234,
+  "prediction_class": "legitimate",
+  "inference_time_ms": 45.67,
+  "cpu_usage": 38.45,
+  "memory_usage_mb": 1024,
+  "environment": "production",
+  "request_id": "req_12345",
+  "error": false,
+  "error_message": null
+}
 ```
-- Once you are inside the Elasticsearch directory, go into the `bin` folder:
-- Start Elasticsearch by running the following command:
-```commandline
-./elasticsearch
-```
-- After Elasticsearch has started successfully, open a web browser and visit the following URL
-```plaintext
-http://localhost:9200
-```
-- If Elasticsearch is functioning correctly, you should see JSON content displayed in your web browser.
 
-- Add these two lines in the elasticsearch.yml file:
-  - xpack.ml.enabled: false  
-  - xpack.security.enabled: false
-  - xpack.security.enrollment.enabled: false
+### Field Descriptions
 
-## Kibana
+| Field | Type | Description |
+|-------|------|-------------|
+| `model_name` | string | Name of the ML model |
+| `model_version` | string | Version of the model |
+| `type` | string | Log type (always "model_inference") |
+| `prediction_confidence` | float | Confidence score (0.75-1.0) |
+| `prediction_class` | string | "legitimate" or "suspicious" |
+| `inference_time_ms` | float | Inference latency in milliseconds |
+| `cpu_usage` | float | CPU usage percentage |
+| `memory_usage_mb` | integer | Memory usage in MB |
+| `environment` | string | Deployment environment |
+| `request_id` | string | Unique request identifier |
+| `error` | boolean | Whether an error occurred (5% rate) |
+| `error_message` | string | Error details if error=true |
 
-Kibana is a powerful data visualization and exploration tool for Elasticsearch.
+## Configuration
 
-#### Installation Steps:
-- Visit the Kibana download page: [Kibana Download](https://www.elastic.co/downloads/kibana)
+### Adjusting Log Generation Rate
 
-- Select the appropriate version for your operating system (Windows, macOS).
+Edit `generate_inference_logs.py`:
 
-- Download the Kibana package for your system.
-
-- Once the download is complete, extract the package to your preferred installation directory.
-
-- Open a terminal window.
-
-- Navigate to the Kibana directory by using the `cd` command:
-```commandline
-cd /path/to/kibana
-```
-- Once you are inside the Kibana directory, go into the `bin` folder:
-- Start Kibana by running the following command:
-```commandline
-./kibana
-```
-- If you are using Windows, use this command instead:
-```commandline
-.\kibana.bat
-```
-- After Kibana has started successfully, open a web browser and visit the following URL
-```plaintext
-http://localhost:5601
-```
-## Logstash
-Logstash is a data processing pipeline tool that is often used in conjunction with Elasticsearch and Kibana to ingest, transform, and send data to Elasticsearch for indexing and storage.
-
-#### Installation Steps:
-- Visit the Logstash download page: [Logstash Download](https://www.elastic.co/downloads/logstash)
-
-- Select the appropriate version for your operating system (Windows, macOS).
-
-- Download the Logstash package for your system.
-
-- Once the download is complete, extract the package to your preferred installation directory.
-
-- Open a terminal window.
-- To test the working of Logstash.
-
-- Navigate to the Logstash directory by using the `cd` command:
-```commandline
-cd /path/to/logstash
-```
-- Start Logstash by running the following command:
-```commandline
-bin/logstash -e 'input{stdin{}} output{stdout{}}'
-```
-- This will prompt the user to provide input for which it returns a log in the terminal
-
-## Logging
-Let's setup the logging for the LR machine learning model and log the relevant information using the Python logging library to integrate with Logstash for centralized log management.
 ```python
-logging.basicConfig(filename='training.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-```
-This configuration ensures that log messages are written to the `training.log` file.
-
-The following information will be logged:
-- Start of model training.
-- Number of training samples.
-- Number of testing samples.
-- Completion of model training.
-- Model accuracy on test data.
-- Model coefficients.
-- Model intercept.
-
-#### Logstash.conf
-
-The `logstash.conf` file is a configuration file for Logstash, which is used to specify how Logstash should ingest, process, and output log data.
-
-```plaintext
-input {
-  file {
-    path => "/path/to/your/training.log"
-    start_position => "beginning"
-    sincedb_path => "/dev/null"
-    codec => "json" 
-  }
-}
+# Change sleep duration (currently 1-3 seconds)
+time.sleep(random.uniform(0.5, 1.5))  # Faster generation
 ```
 
-- `input`: This section specifies where Logstash should read log data from.
+### Modifying Model Behavior
 
-- `file`: It is an input plugin that reads data from a file.
-
-- `path`: This field should be set to the path of the log file you want to ingest. In this example, it's set to "/path/to/your/training.log".
-
-- `start_position`: This option specifies where Logstash should start reading the log file. "beginning" means it will start from the beginning of the file.
-
-- `sincedb_path`: This option is used to store information about the current position in the log file. Setting it to "/dev/null" means that Logstash won't use a sincedb file, which is suitable for reading the entire file.
-
-- `codec`: This field specifies the codec to use for parsing log data. In this example, it's set to "json", which implies that the log data is in JSON format.
-
-```plaintext
-filter {
-  grok {
-    match => { "message" => "%{TIMESTAMP_ISO8601:timestamp} - %{LOGLEVEL:loglevel} - %{GREEDYDATA:message}" }
-  }
-  mutate {
-    rename => {
-      "timestamp" => "log_timestamp"
-      "loglevel" => "log_level"
-      "message" => "log_message"
-    }
-  }
-}
+Edit confidence ranges:
+```python
+confidence = random.uniform(0.60, 1.0)  # Lower minimum confidence
 ```
 
-- `filter`: This section is used to process and transform the log data before it is sent to the output.
-
-- `grok`: It is a filter plugin that allows you to extract structured data from unstructured log messages. In this example, it's used to parse the log message into structured fields.
-- `match`: This field specifies the pattern to match in the log message using regular expressions. It extracts the timestamp, log level, and the remaining message text into separate fields.
-- `mutate`: This filter plugin is used to perform various operations on fields.
-- `rename`: It renames the fields extracted by the grok filter to more descriptive names, creating columns in the output data. For example, it renames "timestamp" to "log_timestamp," "loglevel" to "log_level," and "message" to "log_message."
-
-```plaintext
-output {
-  elasticsearch {
-    hosts => ["localhost:9200"]
-    index => "logstash-training"
-  }
-  stdout {
-    codec => rubydebug {
-      metadata => false # Disable metadata to clean up the output
-    }
-  }
-}
+Change error rate:
+```python
+is_error = random.random() < 0.10  # 10% error rate
 ```
 
-- `output`: This section defines where the processed log data should be sent.
+### Docker Resource Limits
 
-- `elasticsearch`: It specifies that the log data should be sent to an Elasticsearch instance.
+Adjust memory allocation in `docker-compose.yml`:
 
-- `hosts`: This field should be set to the address and port of your Elasticsearch cluster. In this example, it's set to "localhost:9200".
+```yaml
+# Elasticsearch
+- "ES_JAVA_OPTS=-Xms2g -Xmx2g"  # Increase to 2GB
 
-- `index`: It defines the name of the Elasticsearch index where the log data will be stored. In this example, it's set to "logstash-training".
-
-- `stdout`: This output plugin is used for debugging and displays log data to the console.
-
-- `codec`: It specifies how the data should be formatted when displayed. In this case, it uses the rubydebug codec.
-
-- `metadata`: It's set to false to disable including metadata in the console output, which helps keep the output clean.
-
-#### Visualise the logs
-
-To start Elasticsearch, Kibana, and Logstash and visualize logs in Kibana, follow these steps:
-
-`Starting Elasticsearch:` 
-- Open a terminal window.
-
-- Navigate to the Elasticsearch directory by using the `cd` command:
-```commandline
-cd /path/to/elasticsearch
-```
-- Once you are inside the Elasticsearch directory, go into the `bin` folder:
-- Start Elasticsearch by running the following command:
-```commandline
-./elasticsearch
-```
-- After Elasticsearch has started successfully, open a web browser and visit the following URL
-```plaintext
-http://localhost:9200
+# Logstash
+- "LS_JAVA_OPTS=-Xms1g -Xmx1g"  # Increase to 1GB
 ```
 
-`Starting Kibana:` 
-- Open a terminal window.
+## Troubleshooting
 
-- Navigate to the Kibana directory by using the `cd` command:
-```commandline
-cd /path/to/kibana
-```
-- Once you are inside the Kibana directory, go into the `bin` folder:
-- Start Kibana by running the following command:
-```commandline
-./kibana
-```
-- After Kibana has started successfully, open a web browser and visit the following URL
-```plaintext
-http://localhost:5601
+### No Data Appearing in Kibana
+
+1. **Check log file is being created:**
+   ```bash
+   ls -lh inference.log
+   tail -f inference.log
+   ```
+
+2. **Verify Logstash is reading the file:**
+   ```bash
+   docker-compose logs logstash | tail -20
+   ```
+
+3. **Check Elasticsearch has data:**
+   ```bash
+   curl -s "http://localhost:9200/ml-inference-logs/_count" | python3 -m json.tool
+   ```
+
+4. **Restart Logstash:**
+   ```bash
+   docker-compose restart logstash
+   ```
+
+### Port Already in Use
+
+If ports 9200, 5601, or 9600 are in use:
+
+```bash
+# Check what's using the port
+lsof -i :9200
+lsof -i :5601
+
+# Change ports in docker-compose.yml
+ports:
+  - "9201:9200"  # Use different host port
 ```
 
-`Starting Logstash:` 
-- Open a terminal window.
+### Logstash Not Starting
 
-- Navigate to the logstash directory by using the `cd` command:
-```commandline
-cd /path/to/logstash
+1. **Check logs:**
+   ```bash
+   docker-compose logs logstash
+   ```
+
+2. **Verify configuration syntax:**
+   ```bash
+   docker exec -it logstash /usr/share/logstash/bin/logstash --config.test_and_exit -f /usr/share/logstash/pipeline/logstash.conf
+   ```
+
+3. **Restart with fresh config:**
+   ```bash
+   docker-compose down
+   docker-compose up -d
+   ```
+
+### File Path Issues (macOS)
+
+If Logstash can't find the log file, verify the volume mount path in `docker-compose.yml` matches your actual directory:
+
+```yaml
+volumes:
+  - /Users/yourusername/path/to/Lab2_ELK_Setup_Mac:/mnt/logs
 ```
-- Once you are inside the Logstash directory, start Logstash by running the following command:
-```commandline
-bin/logstash -f /path/to/logstash.conf
+
+### Memory Issues
+
+Reduce heap sizes if system runs out of memory:
+
+```yaml
+# In docker-compose.yml
+- "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+- "LS_JAVA_OPTS=-Xms256m -Xmx256m"
 ```
-Now, you can access and visualize the logs in Kibana under the `Discover` section.
+
+## Useful Commands
+
+### Docker Management
+```bash
+# View logs
+docker-compose logs -f logstash
+docker-compose logs -f elasticsearch
+
+# Restart specific service
+docker-compose restart logstash
+
+# Stop all services
+docker-compose down
+
+# Remove volumes and data
+docker-compose down -v
+```
+
+### Elasticsearch Queries
+```bash
+# Check cluster health
+curl -s "http://localhost:9200/_cluster/health?pretty"
+
+# View all indices
+curl -s "http://localhost:9200/_cat/indices?v"
+
+# Count documents in index
+curl -s "http://localhost:9200/ml-inference-logs/_count?pretty"
+
+# Search recent logs
+curl -s "http://localhost:9200/ml-inference-logs/_search?pretty" -H 'Content-Type: application/json' -d'
+{
+  "size": 5,
+  "sort": [{"@timestamp": "desc"}]
+}'
+```
+
+### Log File Management
+```bash
+# Monitor logs in real-time
+tail -f inference.log
+
+# Clear log file
+> inference.log
+
+# Count log entries
+wc -l inference.log
+```
+
+## Resources
+
+- [Elasticsearch Documentation](https://www.elastic.co/guide/en/elasticsearch/reference/current/index.html)
+- [Logstash Documentation](https://www.elastic.co/guide/en/logstash/current/index.html)
+- [Kibana Documentation](https://www.elastic.co/guide/en/kibana/current/index.html)
+- [Docker Compose Documentation](https://docs.docker.com/compose/)

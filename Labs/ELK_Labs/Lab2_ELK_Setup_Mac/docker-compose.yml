@@ -1,0 +1,47 @@
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.1.5
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - xpack.ml.enabled=false
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g" # Sets 1GB RAM for Elasticsearch
+    ports:
+      - "9200:9200"
+    networks:
+      - elk
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:9.1.5
+    container_name: kibana
+    environment:
+      # Tells Kibana to find Elasticsearch at the 'elasticsearch' service name
+      ELASTICSEARCH_HOSTS: '["http://elasticsearch:9200"]'
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+    networks:
+      - elk
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:9.1.5
+    container_name: logstash
+    environment:
+      - "LS_JAVA_OPTS=-Xms512m -Xmx512m" # Sets 512MB RAM for Logstash
+    volumes:
+      # Mounts your edited config file into the container's pipeline
+      - ./logstash_pipeline:/usr/share/logstash/pipeline/
+      # Mounts your entire lab directory to /mnt/logs so Logstash can find inference.log
+      - /Users/sahilmohanty/Documents/MLOpsLabsSM/Labs/ELK_Labs/Lab2_ELK_Setup_Mac:/mnt/logs
+    ports:
+      - "9600:9600" # For Logstash monitoring (optional)
+    depends_on:
+      - elasticsearch
+    networks:
+      - elk
+
+networks:
+  elk:
+    driver: bridge
