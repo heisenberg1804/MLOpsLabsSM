@@ -389,3 +389,9 @@ wc -l inference.log
 - [Logstash Documentation](https://www.elastic.co/guide/en/logstash/current/index.html)
 - [Kibana Documentation](https://www.elastic.co/guide/en/kibana/current/index.html)
 - [Docker Compose Documentation](https://docs.docker.com/compose/)
+
+### Dashboard Example
+
+Once you've created visualizations, your dashboard might look like this:
+
+![Kibana Dashboard](images/kibana_dashboard.png)
