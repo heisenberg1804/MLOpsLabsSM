@@ -1,54 +1,99 @@
-## Data Version Control (DVC)
+# DVC Data Versioning Lab: The "Time Machine"
 
-- [DVC](https://dvc.org/) is an open-source tool that serves as a powerful asset in the machine learning project toolkit, with a primary focus on data versioning.
-- **Data versioning** is a critical aspect of any ML project. It allows you to track changes and updates in your datasets over time, ensuring you can always recreate, compare, and reference specific dataset versions used in your experiments.
-- In this lab tutorial, we will be utilizing DVC with Google Cloud Storage to enhance data versioning capabilities, ensuring efficient data management and collaboration within your machine learning project.
-### Creating a Google Cloud Storage Bucket
-1. Navigate to [Google Cloud Console](https://console.cloud.google.com/).
-2. Ensure you've created a new project specifically for this lab.
-3. In the Navigation menu, select "Cloud Storage," then go to "Buckets," and click on "Create a new bucket."
-4. Assign a unique name to your bucket.
-5. Select the region as `us-east1`
-6. Proceed by clicking "Continue" until your new bucket is successfully created.
-7. Once the bucket is created, we need to get the credentials to connect the GCP remote to the project. Go to the `IAM & Admin` service and go to `Service Accounts` in the left sidebar.
-8. Click the `Create Service Account` button to create a new service account that you'll use to connect to the DVC project in a bit. Now you can add the name and ID for this service account and keep all the default settings. We've chosen `lab2` for the name. Click `Create and Continue` and it will show the permissions settings. Select `Owner` in the dropdown and click `Continue`.
-9. Then add your user to have access to the service account and click `Done`. Finally, you'll be redirected to the `Service accounts` page. You’ll see your service account and you’ll be able to click on `Actions` and go to where you `Manage keys` for this service account. 
-10. Once you’ve been redirected, click the `Add Key` button and this will bring up the credentials you need to authenticate your GCP account with your project. Proceed by downloading the credentials in JSON format and securely store the file. This file will serve as the authentication mechanism for DVC when connecting to Google Cloud.
-### Installing DVC with Google Cloud Support
-- Ensure you have DVC with Google Cloud support installed on your system by using the following command:
-	`pip install dvc[gs]`
-- Note that, depending on your chosen [remote storage](https://dvc.org/doc/user-guide/data-management/remote-storage), you may need to install optional dependencies such as `[s3]`, `[azure]`, `[gdrive]`, `[gs]`, `[oss]`, `[ssh]`. To include all optional dependencies, use `[all]`.
-- Run this command to setup google cloud bucket as your storage `dvc remote add -d myremote gs://<mybucket>`
-- In order for DVC to be able to push and pull data from the remote, you need to have valid GCP credentials.
-- Run the following command for authentication `dvc remote modify --lab2 credentialpath <YOUR JSON TOKEN LOCATION>`
-### Tracking Data with DVC
-- Ensure you have downloaded the [required data](https://www.kaggle.com/datasets/arjunbhasin2013/ccdata) and placed it in the "data" folder, renaming the file to "CC_GENERAL.csv."
-- To initiate data tracking, execute the following steps:
-	1. Run the `dvc init` command to initialize DVC for your project. This will generate a `.dvc` file that stores metadata and configuration details. Your `.dvc` file config metadata will look something like this
-	```
-    [core]
-        remote = lab2
-    ['remote "lab2"']
-        url = gs://ie7374
-	```
+## 1. Objective
 
-	dvc remote modify --git-action-gcp credentialpath git-action-gcp git-action-gcp-3e47dbac54ff.json 
-	2. Next, use `dvc add data/CC_GENERAL.csv` to instruct DVC to start tracking this specific dataset.
-	3. To ensure version control, add the generated `.dvc` file to your Git repository with `git add data/CC_GENERAL_csv.dvc`.
-	4. Also, include the `.gitignore` file located in the "data" folder in your Git repository by running `git add data/.gitignore`.
-	5. To complete the process, commit these changes with Git to record the dataset tracking configuration.
+This project demonstrates the core power of Data Version Control (DVC) when used with Git. The goal is to show how to version data like code, allowing us to:
+* Track different versions of a dataset without storing large files in Git.
+* Use Git commits as "pointers" to specific dataset versions.
+* Switch between these data versions seamlessly, creating a "time machine" for our data.
 
-- To push your data to the remote storage in Google Cloud, use the following DVC command: `dvc push` This command will upload your data to the Google Cloud Storage bucket specified in your DVC configuration, making it accessible and versioned in the cloud.
+This lab uses a GCS bucket (`gs://dvc-lab-bucket-mlops`) as remote storage.
 
-### Handling Data Changes and Hash Updates
-Whenever your dataset undergoes changes, DVC will automatically compute a new hash for the updated file. Here's how the process works:
-- **Update the Dataset:** Replace the existing "CC_GENERAL.csv" file in the "data" folder with the updated version.
-- **Update DVC Tracking:** Execute `dvc add data/CC_GENERAL.csv` again to update DVC with the new version of the dataset. When DVC computes the hash for the updated file, it will be different from the previous hash, reflecting the changes in the dataset.
-- **Commit and Push:** Commit the changes with Git and push them to your Git repository. This records the update to the dataset, including the new hash.
-- **Storage in Google Cloud:** When you run dvc push, DVC uploads the updated dataset to the Google Cloud Storage bucket specified in your DVC configuration. Each version of the dataset is stored as a distinct object within the bucket, organized for easy retrieval.
-#### Reverting to Previous Versions with Hashes
-To revert to a previous dataset version:
-- **Checkout Git Commit:** Use Git to checkout the specific commit where the desired dataset version was last committed. For example, run `git checkout <commit-hash>`
-- **Use DVC:** After checking out the Git commit, use DVC to retrieve the dataset version corresponding to that commit by running `dvc checkout`. DVC uses the stored hash to identify and fetch the correct dataset version associated with that commit.
+## 2. The Versioning Workflow (What We Did)
 
-> 💡You can follow [this](https://www.youtube.com/watch?v=kLKBcPonMYw&list=PL7WG7YrwYcnDb0qdPl9-KEStsL-3oaEjg&pp=iAQB) tutorial to learn about DVC in detail.
+We created two distinct versions of our dataset and pushed them to our remote storage.
+
+### Version 1: The Original Data
+
+1.  **Track:** The original `data/CC_GENERAL.csv` file was added to DVC.
+    ```bash
+    dvc add data/CC_GENERAL.csv
+    ```
+2.  **Commit:** The resulting "pointer file" (`data/CC_GENERAL.csv.dvc`) was committed to Git.
+    ```bash
+    git add data/CC_GENERAL.csv.dvc data/.gitignore
+    git commit -m "feat: Track v1 (original) of CC_GENERAL.csv"
+    ```
+3.  **Push:** The actual large data file was pushed to the GCS remote.
+    ```bash
+    dvc push
+    ```
+**Result:** The first Git commit now points to the *original* dataset.
+
+### Version 2: The Modified Data
+
+1.  **Modify:** The `data/CC_GENERAL.csv` file was intentionally modified (e.g., by removing the first 10 rows) to create a new version.
+2.  **Track:** `dvc add` was run again, detecting the change and generating a new hash.
+    ```bash
+    dvc add data/CC_GENERAL.csv
+    ```
+3.  **Commit:** The *updated* pointer file (`data/CC_GENERAL.csv.dvc`) was committed to Git.
+    ```bash
+    git add data/CC_GENERAL.csv.dvc
+    git commit -m "feat: Track v2 (modified) of CC_GENERAL.csv"
+    ```
+4.  **Push:** The new data file was pushed to GCS. DVC was smart enough to only upload the new version, leaving the original data untouched.
+    ```bash
+    dvc push
+    ```
+**Result:** The `main` branch now points to the *modified* dataset.
+
+## 3. 🚀 The "Time Machine" Demonstration
+
+This is how to switch between the two data versions we created.
+
+> **Note:** These commands use `dvc checkout`, which pulls data from the local DVC cache. If you are on a new machine, you would run `dvc pull` to download the data from GCS first.
+
+### Step 1: Check the Current Data (v2)
+
+By default, we are on the `main` branch, which points to our latest work (v2).
+
+```bash
+# 1. Ensure you are on the main branch
+git checkout main
+
+# 2. Sync data with the current Git commit
+dvc checkout
+```
+At this point, if you inspect `data/CC_GENERAL.csv`, you will see the **modified file** (v2).
+
+### Step 2: Travel Back in Time (v1)
+
+Now, let's go back in time to the *first* data commit.
+
+```bash
+# 1. Use Git to check out the previous commit
+#    (HEAD~1 means "one commit before the most recent one")
+git checkout HEAD~1
+
+# 2. Sync data with this older Git commit
+dvc checkout
+```
+**Magic!** If you inspect `data/CC_GENERAL.csv` now, you will see the **original, unmodified file** (v1), magically restored.
+
+### Step 3: Return to the Present (v2)
+
+Finally, let's return to the present.
+
+```bash
+# 1. Go back to the main branch
+git checkout main
+
+# 2. Sync data with the main branch
+dvc checkout
+```
+The `data/CC_GENERAL.csv` file is once again the **modified version** (v2).
+
+## 4. Conclusion
+
+This workflow proves that DVC + Git allows for complete, reproducible versioning of a machine learning project. We can reliably tie our code, data, and models together at any given point in history.
