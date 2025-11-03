@@ -2,3 +2,4 @@
     remote = main-bucket
 ['remote "main-bucket"']
     url = gs://dvc-lab-bucket-mlops
+    credentialpath = /Users/sahilmohanty/Downloads/dvc-labs-mlops-af1ddb18317b.json
